@@ -333,11 +333,12 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
         return {
           ...state,
           loading: false,
-          authState: "SEMI_AUTH",
+          authState: "SEMI_AUTH", 
           tempEmail: action.payload.email || null,
           tempPassword: action.payload.password || null
         }
       } else {
+        // SUCCESS - Login complet (MODIFICATION ICI)
         if (action.payload.csrfToken) {
           localStorage.setItem("csrfToken", action.payload.csrfToken)
         }
@@ -346,8 +347,8 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
           loading: false,
           authState: "AUTHENTICATED",
           user: action.payload.user || null,
-          permissions: action.payload.permissions || null,
-          plan: action.payload.plan || null,
+          permissions: action.payload.permissions || null,  // AJOUTÉ
+          plan: action.payload.plan || null,                // AJOUTÉ
           csrfToken: action.payload.csrfToken || null
         }
       }

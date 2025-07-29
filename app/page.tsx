@@ -1,108 +1,40 @@
 "use client"
 
-import { useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { LoginForm } from "@/components/auth/login-form"
-import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
-import { VerificationForm } from "@/components/auth/verification-form"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/dashboard/sidebar"
-import { DashboardHeader } from "@/components/dashboard/header"
-import { EmployeesDashboard } from "@/components/dashboard/employees/employees-dashboard"
-import { LeavesDashboard } from "@/components/dashboard/leaves/leaves-dashboard"
-import { ResetPasswordForm } from "@/components/auth/reset-password-form"
-import { CheckCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-
-function DashboardContent() {
-  const [currentView, setCurrentView] = useState<"employees" | "leaves">("employees")
-
-  if (currentView === "employees") {
-    return <EmployeesDashboard />
-  }
-
-  if (currentView === "leaves") {
-    return <LeavesDashboard />
-  }
-
-  return <EmployeesDashboard />
-}
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAppSelector } from "@/lib/hooks"
 
 export default function HomePage() {
-  const { authState } = useAuth()
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [showResetPassword, setShowResetPassword] = useState(false)
-  const [resetEmail, setResetEmail] = useState("")
-  const [showResetSuccess, setShowResetSuccess] = useState(false)
-
-  if (authState === "NOT_AUTH") {
-    if (showResetSuccess) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Mot de passe réinitialisé !</h1>
-            <p className="text-gray-600">Votre mot de passe a été mis à jour avec succès.</p>
-            <Button
-              onClick={() => {
-                setShowResetSuccess(false)
-                setShowResetPassword(false)
-                setShowForgotPassword(false)
-              }}
-              className="bg-[#2d5a5a] hover:bg-[#2d5a5a]/90"
-            >
-              Se connecter
-            </Button>
-          </div>
-        </div>
-      )
+  const router = useRouter()
+  
+  const authState = useAppSelector((state) => {
+    try {
+      return state?.auth?.authState || "NOT_AUTH"
+    } catch (error) {
+      console.error("Error accessing auth state:", error)
+      return "NOT_AUTH"
     }
+  })
 
-    if (showResetPassword) {
-      return (
-        <ResetPasswordForm
-          email={resetEmail}
-          onBackToLogin={() => {
-            setShowResetPassword(false)
-            setShowForgotPassword(false)
-          }}
-          onSuccess={() => setShowResetSuccess(true)}
-        />
-      )
+  useEffect(() => {
+    console.log("🏠 HomePage: Auth state is", authState)
+
+    switch (authState) {
+      case "AUTHENTICATED":
+        console.log("🚀 Redirecting to dashboard")
+        router.push("/dashboard")
+        break
+      case "SEMI_AUTH":
+        console.log("🔐 Redirecting to verify")
+        router.push("/verify")
+        break
+      case "NOT_AUTH":
+      default:
+        console.log("🔑 Redirecting to login")
+        router.push("/login")
     }
+  }, [authState, router])
 
-    if (showForgotPassword) {
-      return (
-        <ForgotPasswordForm
-          onBackToLogin={() => setShowForgotPassword(false)}
-          onResetPassword={(email) => {
-            setResetEmail(email)
-            setShowResetPassword(true)
-          }}
-        />
-      )
-    }
-
-    return <LoginForm onForgotPassword={() => setShowForgotPassword(true)} />
-  }
-
-  if (authState === "SEMI_AUTH") {
-    return <VerificationForm />
-  }
-
-  return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <DashboardHeader />
-          <main className="flex-1 bg-muted/30">
-            <DashboardContent />
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
-  )
+  // The loading is handled by AuthInitializer, so this should not be seen
+  return null
 }

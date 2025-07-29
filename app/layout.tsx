@@ -2,14 +2,14 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/contexts/auth-context"
+import { Providers } from "./providers"
+import { AuthInitializer } from "@/components/auth/auth-initializer"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Rivolio - Gestion RH",
-  description: "Plateforme SaaS de gestion des ressources humaines",
-    generator: 'v0.dev'
+  title: "Rivolio HR SaaS",
+  description: "Advanced client platform with multi-tier authentication",
 }
 
 export default function RootLayout({
@@ -20,7 +20,11 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <AuthProvider>{children}</AuthProvider>
+        <Providers>
+          <AuthInitializer>
+            {children}
+          </AuthInitializer>
+        </Providers>
       </body>
     </html>
   )

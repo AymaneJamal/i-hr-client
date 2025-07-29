@@ -57,3 +57,8 @@ export const store = createStoreWithThunk(rootReducer)
 
 export type RootState = ReturnType<typeof rootReducer>
 export type AppDispatch = typeof store.dispatch
+
+// Exposer le store globalement pour l'API client
+if (typeof window !== 'undefined') {
+  (window as any).__REDUX_STORE__ = store
+}

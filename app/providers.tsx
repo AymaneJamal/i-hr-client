@@ -3,7 +3,6 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useEffect } from "react"
 import { store } from "@/lib/store"
-import { AuthProvider } from "@/components/auth/auth-provider"
 
 // Simple Redux context implementation
 const ReduxContext = createContext<any>(null)
@@ -32,20 +31,25 @@ export function ReduxProvider({ children }: { children: React.ReactNode }) {
 
 export function useDispatch() {
   const context = useContext(ReduxContext)
+  if (!context) {
+    throw new Error('useDispatch must be used within a ReduxProvider')
+  }
   return context.dispatch
 }
 
 export function useSelector(selector: any) {
   const context = useContext(ReduxContext)
+  if (!context) {
+    throw new Error('useSelector must be used within a ReduxProvider')
+  }
   return selector(context.state)
 }
 
+// Providers component - NO AuthProvider here
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ReduxProvider>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
+      {children}
     </ReduxProvider>
   )
 }

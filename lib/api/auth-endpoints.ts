@@ -14,45 +14,28 @@ import type {
 
 export class AuthEndpoints {
   // Login initial
-  static async login(credentials: LoginRequest): Promise<LoginResponse> {
+    static async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await apiClient.post("/api/auth/tenant/login", credentials)
+      const response = await apiClient.post("/client/public/auth/login", credentials)
       
-      if (response.data.success) {
-        const authData = response.data as AuthResponse
+      console.log("🔍 Backend response:", response.data)
+      
+      if (response.data.success && response.data.responseType === "SUCCESS") {
+        const backendData = response.data.data
         
-        // Check if MFA is required
-        if (authData.data.user.isMfaRequired === 1) {
-          return {
-            requiresMFA: true,
-            email: credentials.email,
-            password: credentials.password,
-            message: authData.message
-          }
-        }
-        
-        // Check if email verification is required
-        if (authData.data.user.isEmailVerified === 0) {
-          return {
-            requiresEmailVerification: true,
-            email: credentials.email,
-            password: credentials.password,
-            message: "Email verification required"
-          }
-        }
-        
-        // Direct authentication success
+        // Adapter la réponse backend à notre format
         return {
-          user: authData.data.user,
-          csrfToken: authData.data.additionalData.csrfToken,
-          permissions: authData.data.additionalData.permissions,
-          plan: authData.data.additionalData.plan,
-          message: authData.message
+          user: backendData.user,
+          csrfToken: backendData.additionalData.csrfToken,
+          permissions: backendData.additionalData.permissions,
+          plan: backendData.additionalData.plan,
+          message: response.data.message
         }
       }
       
       throw new Error(response.data.message || "Login failed")
     } catch (error: any) {
+      console.error("Login API error:", error)
       throw new Error(error.response?.data?.message || error.message || "Login failed")
     }
   }
