@@ -7,6 +7,90 @@ import type {
   ValidateTokenRequest,
   UserRole
 } from "@/lib/types/auth"
+function saveCompleteAuthData(data: { user: any, permissions: any, plan: any, csrfToken: string }) {
+  if (typeof window !== 'undefined') {
+    // Sauvegarder chaque donnée séparément
+    localStorage.setItem("csrfToken", data.csrfToken)
+    localStorage.setItem("userData", JSON.stringify(data.user))
+    localStorage.setItem("userPermissions", JSON.stringify(data.permissions))
+    localStorage.setItem("userPlan", JSON.stringify(data.plan))
+    
+    // Cookie pour middleware
+    if (typeof document !== 'undefined') {
+      document.cookie = `csrfToken=${data.csrfToken}; path=/; secure; samesite=strict; max-age=86400`
+    }
+  }
+}
+
+
+function loadCompleteAuthData() {
+  if (typeof window !== 'undefined') {
+    try {
+      const csrfToken = localStorage.getItem("csrfToken")
+      const userData = localStorage.getItem("userData")
+      const userPermissions = localStorage.getItem("userPermissions")
+      const userPlan = localStorage.getItem("userPlan")
+      
+      if (csrfToken && userData) {
+        return {
+          csrfToken,
+          user: JSON.parse(userData),
+          permissions: userPermissions ? JSON.parse(userPermissions) : null,
+          plan: userPlan ? JSON.parse(userPlan) : null
+        }
+      }
+    } catch (error) {
+      console.error("Error loading auth data:", error)
+    }
+  }
+  return null
+}
+
+
+function clearCompleteAuthData() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem("csrfToken")
+    localStorage.removeItem("userData")
+    localStorage.removeItem("userPermissions")
+    localStorage.removeItem("userPlan")
+    
+    if (typeof document !== 'undefined') {
+      document.cookie = "csrfToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+// Helper functions pour gérer les cookies et localStorage - FIXED
+function saveCsrfToken(token: string) {
+  // LocalStorage (toujours disponible côté client)
+  if (typeof window !== 'undefined') {
+    localStorage.setItem("csrfToken", token)
+    
+    // Cookie (pour le middleware) - SEULEMENT côté client
+    if (typeof document !== 'undefined') {
+      document.cookie = `csrfToken=${token}; path=/; secure; samesite=strict; max-age=86400`
+    }
+  }
+}
+
+function removeCsrfToken() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem("csrfToken")
+    
+    // Supprimer aussi le cookie - SEULEMENT côté client
+    if (typeof document !== 'undefined') {
+      document.cookie = "csrfToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    }
+  }
+}
 
 // Action types
 const AUTH_ACTIONS = {
@@ -84,6 +168,10 @@ export const loginUser = (credentials: LoginRequest) => async (dispatch: any) =>
   try {
     dispatch({ type: AUTH_ACTIONS.LOGIN_PENDING })
     const response = await AuthEndpoints.login(credentials)
+    
+    // DEBUG: Log ce qui arrive du backend
+    console.log("🔍 Login response received:", response)
+    
     dispatch({ type: AUTH_ACTIONS.LOGIN_FULFILLED, payload: response })
     return response
   } catch (error: any) {
@@ -180,55 +268,46 @@ export const renewCsrfToken = () => async (dispatch: any) => {
 
 export const checkAuthStatus = () => async (dispatch: any) => {
   try {
-    const csrfToken = localStorage.getItem("csrfToken")
+    // Essayer de charger depuis localStorage d'abord
+    const savedData = loadCompleteAuthData()
     
-    if (!csrfToken) {
-      throw new Error("No CSRF token found")
+    if (!savedData) {
+      throw new Error("No saved auth data found")
     }
     
-    // Try TENANT_ADMIN first, then fallback to others
-    const roles: UserRole[] = ["TENANT_ADMIN", "TENANT_USER", "TENANT_HELPER"]
+    // Valider le token
+    const roles = ["TENANT_ADMIN", "TENANT_USER", "TENANT_HELPER"]
     
     for (const role of roles) {
       try {
         const response = await dispatch(validateToken({ role }))
         
-        const user = {
-          id: null,
-          email: response.data.email,
-          password: null,
-          firstName: "User",
-          lastName: "Name",
-          role: response.data.role,
-          tenantId: null,
-          status: "ACTIVE",
-          createdAt: null,
-          isEmailVerified: 1,
-          companyRole: null,
-          statusModifiedAt: null,
-          modifiedAt: null,
-          isMfaRequired: 0,
-          secretCodeMFA: null,
-          lastLoginAt: Date.now(),
-          failedLoginAttempts: null
+        // Restaurer TOUTES les données sauvegardées
+        const result = { 
+          user: savedData.user,
+          permissions: savedData.permissions,
+          plan: savedData.plan,
+          csrfToken: response.newCsrfToken || savedData.csrfToken
         }
         
-        const result = { 
-          user, 
-          csrfToken: response.newCsrfToken || csrfToken,
-          role: response.data.role
+        // Mettre à jour le CSRF token si nouveau
+        if (response.newCsrfToken) {
+          saveCompleteAuthData({
+            ...savedData,
+            csrfToken: response.newCsrfToken
+          })
         }
         
         dispatch({ type: AUTH_ACTIONS.VALIDATE_FULFILLED, payload: result })
         return result
       } catch (roleError) {
-        // Continue to next role if this one fails
         continue
       }
     }
     
     throw new Error("No valid role found")
   } catch (error: any) {
+    clearCompleteAuthData()
     dispatch({ type: AUTH_ACTIONS.VALIDATE_REJECTED, payload: "Authentication validation failed" })
     throw error
   }
@@ -321,6 +400,9 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
         error: null
       }
     case AUTH_ACTIONS.LOGIN_FULFILLED:
+      // DEBUG: Log ce qui arrive dans le reducer
+      console.log("🔍 LOGIN_FULFILLED payload:", action.payload)
+      
       if (action.payload.requiresMFA) {
         return {
           ...state,
@@ -338,17 +420,27 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
           tempPassword: action.payload.password || null
         }
       } else {
-        // SUCCESS - Login complet (MODIFICATION ICI)
+        // SUCCESS - Login complet
         if (action.payload.csrfToken) {
-          localStorage.setItem("csrfToken", action.payload.csrfToken)
+          saveCompleteAuthData({
+            user: action.payload.user,
+            permissions: action.payload.permissions,
+            plan: action.payload.plan,
+            csrfToken: action.payload.csrfToken
+          })
         }
+        
+        // DEBUG: Log ce qui va être sauvegardé
+        console.log("🔍 Saving to Redux - Plan:", action.payload.plan)
+        console.log("🔍 Saving to Redux - Permissions:", action.payload.permissions)
+        
         return {
           ...state,
           loading: false,
           authState: "AUTHENTICATED",
           user: action.payload.user || null,
-          permissions: action.payload.permissions || null,  // AJOUTÉ
-          plan: action.payload.plan || null,                // AJOUTÉ
+          permissions: action.payload.permissions || null,
+          plan: action.payload.plan || null,
           csrfToken: action.payload.csrfToken || null
         }
       }
@@ -367,7 +459,7 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
         error: null
       }
     case AUTH_ACTIONS.MFA_FULFILLED:
-      localStorage.setItem("csrfToken", action.payload.csrfToken)
+      saveCsrfToken(action.payload.csrfToken)
       return {
         ...state,
         loading: false,
@@ -394,7 +486,7 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
         error: null
       }
     case AUTH_ACTIONS.EMAIL_FULFILLED:
-      localStorage.setItem("csrfToken", action.payload.csrfToken)
+      saveCsrfToken(action.payload.csrfToken)
       return {
         ...state,
         loading: false,
@@ -415,17 +507,25 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
 
     // Check Auth Status
     case AUTH_ACTIONS.VALIDATE_FULFILLED:
-      if (action.payload.csrfToken) {
-        localStorage.setItem("csrfToken", action.payload.csrfToken)
-      }
-      return {
-        ...state,
-        authState: "AUTHENTICATED",
-        user: action.payload.user,
-        csrfToken: action.payload.csrfToken
-      }
+        // Sauvegarder toutes les données si elles existent
+        if (action.payload.csrfToken) {
+          saveCompleteAuthData({
+            user: action.payload.user,
+            permissions: action.payload.permissions,
+            plan: action.payload.plan,
+            csrfToken: action.payload.csrfToken
+          })
+        }
+        return {
+          ...state,
+          authState: "AUTHENTICATED",
+          user: action.payload.user,
+          permissions: action.payload.permissions,  // AJOUTÉ
+          plan: action.payload.plan,               // AJOUTÉ
+          csrfToken: action.payload.csrfToken
+        }
     case AUTH_ACTIONS.VALIDATE_REJECTED:
-      localStorage.removeItem("csrfToken")
+      removeCsrfToken()
       return {
         ...state,
         authState: "NOT_AUTH",
@@ -437,7 +537,7 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
 
     // Renew CSRF Token
     case AUTH_ACTIONS.CSRF_FULFILLED:
-      localStorage.setItem("csrfToken", action.payload)
+      saveCsrfToken(action.payload)
       return {
         ...state,
         csrfToken: action.payload
@@ -445,7 +545,7 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
 
     // Logout
     case AUTH_ACTIONS.LOGOUT_FULFILLED:
-      localStorage.removeItem("csrfToken")
+      clearCompleteAuthData()
       return {
         ...state,
         authState: "NOT_AUTH",
@@ -541,7 +641,7 @@ const authReducer = (state = initialState, action: any): AuthSliceState => {
         error: null
       }
     case AUTH_ACTIONS.UPDATE_CSRF_TOKEN:
-      localStorage.setItem("csrfToken", action.payload)
+      saveCsrfToken(action.payload)
       return {
         ...state,
         csrfToken: action.payload

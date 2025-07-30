@@ -14,7 +14,8 @@ import type {
 
 export class AuthEndpoints {
   // Login initial
-    static async login(credentials: LoginRequest): Promise<LoginResponse> {
+      // Login initial
+  static async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
       const response = await apiClient.post("/client/public/auth/login", credentials)
       
@@ -23,12 +24,22 @@ export class AuthEndpoints {
       if (response.data.success && response.data.responseType === "SUCCESS") {
         const backendData = response.data.data
         
+        // Debug: Vérifier la structure exacte
+        console.log("🔍 Backend data structure:", backendData)
+        console.log("🔍 Additional data:", backendData.additionalData)
+        console.log("🔍 Plan data:", backendData.additionalData?.plan)
+        
+        // CORRECTION: Vérifier que additionalData existe
+        if (!backendData.additionalData) {
+          throw new Error("Missing additionalData in response")
+        }
+        
         // Adapter la réponse backend à notre format
         return {
           user: backendData.user,
           csrfToken: backendData.additionalData.csrfToken,
           permissions: backendData.additionalData.permissions,
-          plan: backendData.additionalData.plan,
+          plan: backendData.additionalData.plan, // FIX: S'assurer que ceci est défini
           message: response.data.message
         }
       }
@@ -112,7 +123,7 @@ export class AuthEndpoints {
   // Validate Token
   static async validateToken(data: ValidateTokenRequest): Promise<ValidateTokenResponse> {
     try {
-      const response = await apiClient.post("/api/auth/tenant/validate/token", data)
+      const response = await apiClient.post("/client/validate/token", data)
       
       if (response.data.valid && response.data.status === "AUTHORIZED") {
         return {

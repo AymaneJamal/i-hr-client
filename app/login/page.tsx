@@ -30,7 +30,7 @@ export default function LoginPage() {
   // Handle redirect based on auth state
   useEffect(() => {
     if (authState === "AUTHENTICATED") {
-      router.push("/dashboard")
+      router.push("/dashboard/employees")
     } else if (authState === "SEMI_AUTH") {
       router.push("/verify")
     }
@@ -45,7 +45,6 @@ export default function LoginPage() {
       setIsLoading(false)
       return
     }
-
     try {
       // Redux Vanilla : dispatch retourne directement le résultat ou lance une erreur
       const result = await dispatch(loginUser({ email, password }))
@@ -54,7 +53,7 @@ export default function LoginPage() {
       if (result && (result.requiresMFA || result.requiresEmailVerification)) {
         router.push("/verify")
       } else {
-        router.push("/dashboard")
+        router.push("/dashboard/employees")
       }
     } catch (err: any) {
       // Les erreurs sont gérées automatiquement par le reducer

@@ -16,7 +16,7 @@ const routeConfig = {
   
   // Protected routes (authentication required)
   protected: [
-    "/dashboard"
+    "/dashboard/employees",
   ],
   
   // Admin-only routes
@@ -70,12 +70,10 @@ function getRequiredPermissions(pathname: string): string[] {
   return []
 }
 
-// Helper function to check if user has CSRF token (basic auth check)
+// MODIFICATION: Vérifier uniquement le cookie CSRF (pas localStorage)
 function hasAuthToken(request: NextRequest): boolean {
   const csrfToken = request.cookies.get("csrfToken")?.value
-  const localStorageToken = request.headers.get("x-csrf-token")
-  
-  return !!(csrfToken || localStorageToken)
+  return !!csrfToken
 }
 
 // Helper function to get user role from cookie or header (if available)

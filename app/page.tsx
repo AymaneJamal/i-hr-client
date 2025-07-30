@@ -22,7 +22,7 @@ export default function HomePage() {
     switch (authState) {
       case "AUTHENTICATED":
         console.log("🚀 Redirecting to dashboard")
-        router.push("/dashboard")
+        router.push("/dashboard/employees")
         break
       case "SEMI_AUTH":
         console.log("🔐 Redirecting to verify")

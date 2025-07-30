@@ -1,3 +1,5 @@
+// components/ui/role-indicator.tsx
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -93,8 +95,8 @@ export function RoleIndicator({
 
   const sizes = sizeConfig[size]
 
-  // Count permissions (for non-admin users) - Fixed typing
-  const permissionCount = userRole !== "TENANT_ADMIN" && permissions 
+  // Count permissions (for non-admin users) - FIXED: Check if permissions exists and has permissions property
+  const permissionCount = userRole !== "TENANT_ADMIN" && permissions && permissions.permissions
     ? Object.values(permissions.permissions).filter((perms: unknown) => {
         // Type guard to check if perms is an array
         if (Array.isArray(perms)) {
@@ -224,7 +226,8 @@ export function PermissionLevelBadge({
     )
   }
 
-  const modulePermissions = permissions.permissions[module]
+  // FIXED: Check if permissions object exists
+  const modulePermissions = permissions.permissions ? permissions.permissions[module] : null
   
   // Type guard and cast
   if (!modulePermissions || !Array.isArray(modulePermissions)) {
