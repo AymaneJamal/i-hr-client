@@ -4,12 +4,13 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
 import { AuthInitializer } from "@/components/auth/auth-initializer"
+import { SecurityProvider } from "@/components/auth/security-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Rivolio HR SaaS",
-  description: "Advanced client platform with multi-tier authentication",
+  title: "Rivolio",
+  description: "Advanced client platform with secure authentication",
 }
 
 export default function RootLayout({
@@ -22,7 +23,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <AuthInitializer>
-            {children}
+            <SecurityProvider validationInterval={60}>
+              {children}
+            </SecurityProvider>
           </AuthInitializer>
         </Providers>
       </body>

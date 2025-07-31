@@ -1,97 +1,116 @@
 // hooks/use-permissions.ts
 
-import { useMemo } from "react"
 import { useAppSelector } from "@/lib/hooks"
-import type { PermissionModule, PermissionLevel } from "@/lib/types/permissions"
-import type { UserRole } from "@/lib/types/auth"
+import type { UserPermissions, PermissionLevel } from "@/lib/types/auth"
 
 export function usePermissions() {
-  const { user, permissions } = useAppSelector((state: any) => state.auth)
+  const { user, permissions, authState } = useAppSelector((state) => state.auth)
 
-  const hasPermission = useMemo(() => {
-    return (module: PermissionModule, level: PermissionLevel = "READ"): boolean => {
-      if (!user || !permissions) return false
-
-      // TENANT_ADMIN has access to everything in the plan
-      if (user.role === "TENANT_ADMIN") return true
-
-      // For TENANT_USER and TENANT_HELPER, check specific permissions
-      const modulePermissions = permissions.permissions[module]
-      if (!modulePermissions || modulePermissions.includes("FORBIDDEN")) {
-        return false
-      }
-
-      // Check if user has the required permission level
-      return modulePermissions.includes(level)
+  const hasPermission = (permissionKey: string, level: PermissionLevel = "READ"): boolean => {
+    if (!permissions || authState !== "AUTHENTICATED") {
+      return false
     }
-  }, [user, permissions])
 
-  const hasAnyPermission = useMemo(() => {
-    return (module: PermissionModule): boolean => {
-      if (!user || !permissions) return false
-
-      // TENANT_ADMIN has access to everything
-      if (user.role === "TENANT_ADMIN") return true
-
-      // Check if user has any permission (not FORBIDDEN)
-      const modulePermissions = permissions.permissions[module]
-      return modulePermissions && !modulePermissions.includes("FORBIDDEN")
+    // Si l'utilisateur est TENANT_ADMIN et permissions = "ALL", il a toutes les permissions
+    if (user?.role === "TENANT_ADMIN" && permissions === "ALL") {
+      return true
     }
-  }, [user, permissions])
 
-  const canRead = useMemo(() => {
-    return (module: PermissionModule): boolean => hasPermission(module, "READ")
-  }, [hasPermission])
-
-  const canWrite = useMemo(() => {
-    return (module: PermissionModule): boolean => hasPermission(module, "WRITE")
-  }, [hasPermission])
-
-  const canDelete = useMemo(() => {
-    return (module: PermissionModule): boolean => hasPermission(module, "DELETE")
-  }, [hasPermission])
-
-  const isForbidden = useMemo(() => {
-    return (module: PermissionModule): boolean => {
-      if (!user || !permissions) return true
-
-      // TENANT_ADMIN is never forbidden
-      if (user.role === "TENANT_ADMIN") return false
-
-      // Check if explicitly forbidden
-      const modulePermissions = permissions.permissions[module]
-      return !modulePermissions || modulePermissions.includes("FORBIDDEN")
+    // Si permissions est une string autre que "ALL", pas de permissions
+    if (typeof permissions === "string") {
+      return false
     }
-  }, [user, permissions])
 
-  const getUserRole = useMemo((): UserRole | null => {
+    // Vérifier si l'utilisateur a la permission spécifique avec le niveau requis
+    const userPermissionLevels = permissions.permissions[permissionKey]
+    if (!userPermissionLevels) {
+      return false
+    }
+
+    return userPermissionLevels.includes(level) && !userPermissionLevels.includes("FORBIDDEN")
+  }
+
+  const hasAnyPermission = (permissionKeys: string | string[], level: PermissionLevel = "READ"): boolean => {
+    // Si l'utilisateur est TENANT_ADMIN et permissions = "ALL", il a toutes les permissions
+    if (user?.role === "TENANT_ADMIN" && permissions === "ALL") {
+      return true
+    }
+
+    // Support both string and array
+    const keys = Array.isArray(permissionKeys) ? permissionKeys : [permissionKeys]
+    return keys.some(key => hasPermission(key, level))
+  }
+
+  const hasAllPermissions = (permissionKeys: string[], level: PermissionLevel = "READ"): boolean => {
+    // Si l'utilisateur est TENANT_ADMIN et permissions = "ALL", il a toutes les permissions
+    if (user?.role === "TENANT_ADMIN" && permissions === "ALL") {
+      return true
+    }
+
+    return permissionKeys.every(key => hasPermission(key, level))
+  }
+
+  const isForbidden = (permissionKey: string): boolean => {
+    if (!permissions || authState !== "AUTHENTICATED") {
+      return false
+    }
+
+    // Si l'utilisateur est TENANT_ADMIN et permissions = "ALL", rien n'est interdit
+    if (user?.role === "TENANT_ADMIN" && permissions === "ALL") {
+      return false
+    }
+
+    // Si permissions est une string autre que "ALL", pas de permissions détaillées
+    if (typeof permissions === "string") {
+      return false
+    }
+
+    // Vérifier si l'utilisateur a explicitement "FORBIDDEN" pour cette permission
+    const userPermissionLevels = permissions.permissions[permissionKey]
+    if (!userPermissionLevels) {
+      return false // Pas de permission définie = pas interdit explicitement
+    }
+
+    return userPermissionLevels.includes("FORBIDDEN")
+  }
+
+  const canWrite = (permissionKey: string): boolean => {
+    return hasPermission(permissionKey, "WRITE")
+  }
+
+  const canDelete = (permissionKey: string): boolean => {
+    return hasPermission(permissionKey, "DELETE")
+  }
+
+  const isAdmin = (): boolean => {
+    return user?.role === "TENANT_ADMIN"
+  }
+
+  const isAuthenticated = (): boolean => {
+    return authState === "AUTHENTICATED"
+  }
+
+  // Retourner la valeur directement, pas une fonction
+  const getUserRole = () => {
     return user?.role || null
-  }, [user])
+  }
 
-  const getPermissionsForModule = useMemo(() => {
-    return (module: PermissionModule): PermissionLevel[] => {
-      if (!user || !permissions) return []
-
-      // TENANT_ADMIN has all permissions
-      if (user.role === "TENANT_ADMIN") {
-        return ["READ", "WRITE", "DELETE"]
-      }
-
-      // Return actual permissions for the module
-      return permissions.permissions[module] || []
-    }
-  }, [user, permissions])
+  // Calculer userRole ici pour l'utiliser comme valeur
+  const userRole = getUserRole()
 
   return {
+    user,
+    permissions,
     hasPermission,
     hasAnyPermission,
-    canRead,
+    hasAllPermissions,
+    isForbidden,
     canWrite,
     canDelete,
-    isForbidden,
+    isAdmin,
+    isAuthenticated,
     getUserRole,
-    getPermissionsForModule,
-    permissions: permissions?.permissions || {},
-    user
+    userRole, // Ajouter userRole comme valeur
+    authState
   }
 }

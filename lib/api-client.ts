@@ -110,6 +110,8 @@ class ApiClient {
     console.log("🚨 Authentication error detected, clearing local storage")
     localStorage.removeItem("csrfToken")
     localStorage.removeItem("userData")
+    localStorage.removeItem("userPermissions")
+    localStorage.removeItem("userPlan")
     
     // Redirect to login if not already there
     if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
@@ -118,168 +120,117 @@ class ApiClient {
   }
 
   // HTTP Methods
-  async get(url: string, config?: ExtendedRequestConfig) {
+  async get(url: string, config?: ExtendedRequestConfig): Promise<any> {
     const response = await this.fetchWithAuth(url, {
       method: "GET",
-      ...config
+      ...config,
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(errorText || `HTTP ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return {
-      data: await response.json(),
-      status: response.status,
-      statusText: response.statusText
-    }
+    return response.json()
   }
 
-  async post(url: string, data?: any, config?: ExtendedRequestConfig) {
+  async post(url: string, data?: any, config?: ExtendedRequestConfig): Promise<any> {
     const response = await this.fetchWithAuth(url, {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
-      ...config
+      ...config,
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      let errorData
-      try {
-        errorData = JSON.parse(errorText)
-      } catch {
-        errorData = { message: errorText }
-      }
-      
-      const error = new Error(errorData.message || `HTTP ${response.status}`) as any
-      error.response = {
-        data: errorData,
-        status: response.status
-      }
-      throw error
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return {
-      data: await response.json(),
-      status: response.status,
-      statusText: response.statusText
+    const jsonResponse = await response.json()
+    
+    // Debug temporaire - à supprimer après
+    if (url.includes('/login')) {
+      console.log("🔍 API Response JSON:", jsonResponse)
     }
+
+    return jsonResponse
   }
 
-  async put(url: string, data?: any, config?: ExtendedRequestConfig) {
+  async put(url: string, data?: any, config?: ExtendedRequestConfig): Promise<any> {
     const response = await this.fetchWithAuth(url, {
       method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
-      ...config
+      ...config,
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      let errorData
-      try {
-        errorData = JSON.parse(errorText)
-      } catch {
-        errorData = { message: errorText }
-      }
-      
-      const error = new Error(errorData.message || `HTTP ${response.status}`) as any
-      error.response = {
-        data: errorData,
-        status: response.status
-      }
-      throw error
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return {
-      data: await response.json(),
-      status: response.status,
-      statusText: response.statusText
-    }
+    return response.json()
   }
 
-  async patch(url: string, data?: any, config?: ExtendedRequestConfig) {
+  async patch(url: string, data?: any, config?: ExtendedRequestConfig): Promise<any> {
     const response = await this.fetchWithAuth(url, {
       method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
-      ...config
+      ...config,
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      let errorData
-      try {
-        errorData = JSON.parse(errorText)
-      } catch {
-        errorData = { message: errorText }
-      }
-      
-      const error = new Error(errorData.message || `HTTP ${response.status}`) as any
-      error.response = {
-        data: errorData,
-        status: response.status
-      }
-      throw error
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return {
-      data: await response.json(),
-      status: response.status,
-      statusText: response.statusText
-    }
+    return response.json()
   }
 
-  async delete(url: string, config?: ExtendedRequestConfig) {
+  async delete(url: string, config?: ExtendedRequestConfig): Promise<any> {
     const response = await this.fetchWithAuth(url, {
       method: "DELETE",
-      ...config
+      ...config,
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      let errorData
-      try {
-        errorData = JSON.parse(errorText)
-      } catch {
-        errorData = { message: errorText }
-      }
-      
-      const error = new Error(errorData.message || `HTTP ${response.status}`) as any
-      error.response = {
-        data: errorData,
-        status: response.status
-      }
-      throw error
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    return {
-      data: await response.json(),
-      status: response.status,
-      statusText: response.statusText
+    return response.json()
+  }
+
+  // File upload method
+  async uploadFile(url: string, formData: FormData, config?: ExtendedRequestConfig): Promise<any> {
+    const { customHeaders, ...restConfig } = config || {}
+    
+    // Don't set Content-Type for file uploads - let browser set it
+    const headers = customHeaders || {}
+    delete headers['Content-Type']
+
+    const response = await this.fetchWithAuth(url, {
+      method: "POST",
+      body: formData,
+      customHeaders: headers,
+      ...restConfig,
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
+
+    return response.json()
   }
 
-  // Utility methods
-  setUserEmail(email: string): void {
-    localStorage.setItem("userData", JSON.stringify({ email }))
-  }
+  // Download file method
+  async downloadFile(url: string, config?: ExtendedRequestConfig): Promise<Blob> {
+    const response = await this.fetchWithAuth(url, {
+      method: "GET",
+      ...config,
+    })
 
-  clearUserData(): void {
-    localStorage.removeItem("userData")
-    localStorage.removeItem("csrfToken")
-  }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
 
-  getCsrfToken(): string | null {
-    return localStorage.getItem("csrfToken")
-  }
-
-  updateCsrfToken(token: string): void {
-    localStorage.setItem("csrfToken", token)
+    return response.blob()
   }
 }
 
 // Export singleton instance
 export const apiClient = new ApiClient()
-
-// Export types for use in other files
-export type { CustomRequestConfig, ExtendedRequestConfig }

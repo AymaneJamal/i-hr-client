@@ -144,7 +144,7 @@ export function ConditionalSidebar() {
  const pathname = usePathname()
  
  const { user, hasAnyPermission } = usePermissions()
- const { plan, hasFeature, hasModule, getPlanInfo } = usePlanFeatures()
+ const { planInfo, hasFeature, hasModule } = usePlanFeatures()
 
  // Filter navigation items based on user permissions and plan
  const getVisibleNavItems = (): NavItem[] => {
@@ -214,8 +214,6 @@ export function ConditionalSidebar() {
  const settingsItems = visibleNavItems.filter((item: NavItem) =>
    item.href === "/dashboard/settings"
  )
-
- const planInfo = getPlanInfo
 
  if (!user) {
    return null

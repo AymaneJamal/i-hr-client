@@ -49,6 +49,7 @@ export function RouteProtector({
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [lastValidation, setLastValidation] = useState<number>(0)
   
   const dispatch = useAppDispatch()
   const router = useRouter()
@@ -56,7 +57,7 @@ export function RouteProtector({
   
   const { 
     hasPermission, 
-    hasAnyPermission, 
+    hasAnyPermission,
     isForbidden 
   } = usePermissions()
   
@@ -68,8 +69,16 @@ export function RouteProtector({
 
   useEffect(() => {
     const validateAccess = async () => {
+      // Éviter les validations trop fréquentes (cooldown de 5 secondes)
+      const now = Date.now()
+      if (now - lastValidation < 5000) {
+        console.log("🕒 RouteProtector: Validation cooldown, skipping...")
+        return
+      }
+      
       setIsValidating(true)
       setErrorMessage(null)
+      setLastValidation(now)
 
       try {
         // First check if user is authenticated
@@ -217,7 +226,7 @@ export function RouteProtector({
     requiredRole, 
     allowMultipleRoles,
     hasPermission, 
-    hasAnyPermission, 
+    hasAnyPermission,
     isForbidden, 
     hasFeature, 
     hasModule, 

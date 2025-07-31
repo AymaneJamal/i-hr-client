@@ -1,93 +1,75 @@
 // hooks/use-plan-features.ts
 
-import { useMemo } from "react"
 import { useAppSelector } from "@/lib/hooks"
-import type { HRFeatures } from "@/lib/types/auth"
+import type { Plan } from "@/lib/types/auth"
 
 export function usePlanFeatures() {
-  const { plan } = useAppSelector((state: any) => state.auth)
+  const { plan, authState } = useAppSelector((state) => state.auth)
 
-  const hasFeature = useMemo(() => {
-    return (feature: keyof HRFeatures): boolean => {
-      if (!plan) return false
-      return plan.hrFeatures[feature] === true
+  const hasFeature = (featureKey: keyof Plan["hrFeatures"]): boolean => {
+    if (!plan || authState !== "AUTHENTICATED") {
+      return false
     }
-  }, [plan])
 
-  const hasModule = useMemo(() => {
-    return (module: string): boolean => {
-      if (!plan) return false
-      return plan.includedModules.includes(module)
+    // Vérifier si le plan inclut la fonctionnalité dans hrFeatures
+    return plan.hrFeatures[featureKey] === true
+  }
+
+  const getLimit = (limitKey: keyof Plan["hrLimits"]): number => {
+    if (!plan || authState !== "AUTHENTICATED") {
+      return 0
     }
-  }, [plan])
 
-  const getPlanLimits = useMemo(() => {
-    return plan?.hrLimits || null
-  }, [plan])
+    // Récupérer la limite depuis les hrLimits du plan
+    return plan.hrLimits[limitKey] || 0
+  }
 
-  const getPlanInfo = useMemo(() => {
+  const hasModule = (moduleKey: string): boolean => {
+    if (!plan || authState !== "AUTHENTICATED") {
+      return false
+    }
+
+    // Vérifier si le module est inclus dans le plan
+    return plan.includedModules?.includes(moduleKey) || false
+  }
+
+  const isFeatureAvailable = (featureKey: keyof Plan["hrFeatures"]): boolean => {
+    return hasFeature(featureKey)
+  }
+
+  const getPlanStatus = (): string => {
+    return plan?.status || "UNKNOWN"
+  }
+
+  const isPlanActive = (): boolean => {
+    return getPlanStatus() === "ACTIVE"
+  }
+
+  // Retourner l'objet directement, pas une fonction
+  const getPlanInfo = () => {
     if (!plan) return null
     
     return {
-      name: plan.planName,
-      category: plan.category,
-      maxUsers: plan.maxUsers,
-      maxEmployees: plan.maxEmployees,
-      maxDepartments: plan.maxDepartments,
-      maxReports: plan.maxReports
+      name: plan.planName || "Plan inconnu",
+      category: plan.category || "UNKNOWN",
+      maxEmployees: plan.maxEmployees || 0,
+      maxUsers: plan.maxUsers || 0,
+      status: plan.status || "UNKNOWN"
     }
-  }, [plan])
+  }
 
-  const getFeatureStatus = useMemo(() => {
-    return (feature: keyof HRFeatures): "enabled" | "disabled" | "unavailable" => {
-      if (!plan) return "unavailable"
-      return plan.hrFeatures[feature] ? "enabled" : "disabled"
-    }
-  }, [plan])
-
-  const getAllEnabledFeatures = useMemo(() => {
-    if (!plan) return []
-    
-    return Object.entries(plan.hrFeatures)
-      .filter(([_, enabled]) => enabled)
-      .map(([feature, _]) => feature as keyof HRFeatures)
-  }, [plan])
-
-  const getAllIncludedModules = useMemo(() => {
-    return plan?.includedModules || []
-  }, [plan])
-
-  const isPlanActive = useMemo(() => {
-    return plan?.status === "ACTIVE"
-  }, [plan])
-
-  const isFeatureInPlan = useMemo(() => {
-    return (feature: keyof HRFeatures): boolean => {
-      if (!plan) return false
-      // Check if feature exists in plan and is enabled
-      return hasFeature(feature) && isPlanActive
-    }
-  }, [plan, hasFeature, isPlanActive])
-
-  const canAccessModule = useMemo(() => {
-    return (module: string): boolean => {
-      if (!plan) return false
-      // Check if module is included in plan and plan is active
-      return hasModule(module) && isPlanActive
-    }
-  }, [plan, hasModule, isPlanActive])
+  // Calculer planInfo ici pour l'utiliser comme objet
+  const planInfo = getPlanInfo()
 
   return {
+    plan,
     hasFeature,
+    getLimit,
     hasModule,
-    isFeatureInPlan,
-    canAccessModule,
-    getFeatureStatus,
-    getPlanLimits,
-    getPlanInfo,
-    getAllEnabledFeatures,
-    getAllIncludedModules,
+    isFeatureAvailable,
+    getPlanStatus,
     isPlanActive,
-    plan
+    getPlanInfo,
+    planInfo // Ajouter planInfo comme objet
   }
 }

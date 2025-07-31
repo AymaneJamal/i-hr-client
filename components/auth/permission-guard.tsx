@@ -66,7 +66,7 @@ export function PermissionGuard({
   // Check role requirements
   if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
-    if (!roles.includes(user.role)) {
+    if (!roles.includes(user.role as UserRole)) {
       return showMessage ? (
         <Alert variant="destructive">
           <Crown className="h-4 w-4" />

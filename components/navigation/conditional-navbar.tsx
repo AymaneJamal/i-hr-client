@@ -49,7 +49,7 @@ export function ConditionalNavbar() {
   const router = useRouter()
   
   const { user, hasAnyPermission } = usePermissions()
-  const { getPlanInfo, isPlanActive } = usePlanFeatures()
+  const { planInfo, isPlanActive } = usePlanFeatures()
 
   const handleLogout = () => {
     dispatch(logout())
@@ -77,7 +77,7 @@ export function ConditionalNavbar() {
   const getRoleInfo = (): RoleConfig | null => {
     if (!user) return null
     
-    const roleConfig: Record<UserRole, RoleConfig> = {
+    const roleConfig: Record<string, RoleConfig> = {
       TENANT_ADMIN: {
         label: "Administrateur",
         shortLabel: "Admin",
@@ -104,10 +104,9 @@ export function ConditionalNavbar() {
       }
     }
 
-    return roleConfig[user.role as UserRole] || null
+    return roleConfig[user.role] || null
   }
 
-  const planInfo = getPlanInfo || null
   const roleInfo = getRoleInfo()
 
   if (!user) {
@@ -130,7 +129,7 @@ export function ConditionalNavbar() {
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">{planInfo.name}</span>
                   <Badge 
-                    variant={isPlanActive ? "default" : "destructive"}
+                    variant={isPlanActive() ? "default" : "destructive"}
                     className="text-xs"
                   >
                     {planInfo.category}
@@ -237,51 +236,22 @@ export function ConditionalNavbar() {
               </DropdownMenuLabel>
               
               <DropdownMenuSeparator />
-
-              {/* Plan Information */}
-              {planInfo && (
-                <>
-                  <div className="px-2 py-2">
-                    <div className="text-xs text-gray-500 mb-1">Plan actuel</div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{planInfo.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {planInfo.category}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {planInfo.maxUsers} utilisateurs • {planInfo.maxEmployees} employés
-                    </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {/* Menu Items */}
-              <DropdownMenuItem className="cursor-pointer">
+              
+              <DropdownMenuItem onClick={() => router.push("/dashboard/profile")}>
                 <User className="mr-2 h-4 w-4" />
-                <span>Profil</span>
+                Mon profil
               </DropdownMenuItem>
-
-              {/* Settings - Only for TENANT_ADMIN */}
-              {user.role === "TENANT_ADMIN" && (
-                <DropdownMenuItem 
-                  className="cursor-pointer"
-                  onClick={() => router.push("/dashboard/settings")}
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Paramètres</span>
-                </DropdownMenuItem>
-              )}
-
+              
+              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Paramètres
+              </DropdownMenuItem>
+              
               <DropdownMenuSeparator />
-
-              <DropdownMenuItem 
-                className="cursor-pointer text-red-600 focus:text-red-600"
-                onClick={handleLogout}
-              >
+              
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Se déconnecter</span>
+                Se déconnecter
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

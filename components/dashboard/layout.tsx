@@ -18,8 +18,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const { authState, user, csrfToken, permissions, plan } = useAppSelector((state: any) => state.auth)
-  const { getUserRole } = usePermissions()
-  const { isPlanActive, getPlanInfo } = usePlanFeatures()
+  const { userRole } = usePermissions() // Utiliser userRole (valeur) pas getUserRole (fonction)
+  const { isPlanActive, planInfo } = usePlanFeatures() // Utiliser planInfo (objet) pas getPlanInfo (fonction)
 
   useEffect(() => {
     // Simple check without additional validation to avoid loops
@@ -56,10 +56,6 @@ export default function DashboardLayout({
     )
   }
 
-  // Check if user has valid permissions and plan
-  const userRole = getUserRole
-  const planInfo = getPlanInfo
-
   // Show warnings for missing permissions or inactive plan
   const shouldShowWarnings = authState === "AUTHENTICATED"
 
@@ -71,7 +67,7 @@ export default function DashboardLayout({
       {shouldShowWarnings && (
         <div className="pt-20">
           {/* Plan inactive warning */}
-          {!isPlanActive && (
+          {!isPlanActive() && (
             <div className="px-6 py-2">
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />

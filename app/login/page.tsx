@@ -46,17 +46,14 @@ export default function LoginPage() {
       return
     }
     try {
-      // Redux Vanilla : dispatch retourne directement le résultat ou lance une erreur
-      const result = await dispatch(loginUser({ email, password }))
+      const result = await dispatch(loginUser({ email, password })).unwrap()
       
-      // Si on arrive ici, c'est que ça a réussi
-      if (result && (result.requiresMFA || result.requiresEmailVerification)) {
+      if (result && result.requiresMFA) {
         router.push("/verify")
       } else {
         router.push("/dashboard/employees")
       }
     } catch (err: any) {
-      // Les erreurs sont gérées automatiquement par le reducer
       console.error("Login error:", err)
     } finally {
       setIsLoading(false)
@@ -80,7 +77,7 @@ export default function LoginPage() {
               />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Bon retour !</h1>
-            <p className="text-gray-600">Connectez-vous à votre espace client</p>
+            <p className="text-gray-600">Connectez-vous à votre espace i-RH</p>
           </div>
 
           {/* Login Form */}
@@ -95,14 +92,15 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
+                    autoComplete="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-12 border-gray-300 focus:border-[#2d5a5a] focus:ring-[#2d5a5a]"
                     placeholder="votre@email.com"
-                    required
-                    autoComplete="email"
-                    className="pl-10 h-12 rounded-lg border-gray-300 focus:border-[#2d5a5a] focus:ring-[#2d5a5a]"
+                    disabled={isLoading || loading}
                   />
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 </div>
               </div>
 
@@ -115,20 +113,22 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 h-12 border-gray-300 focus:border-[#2d5a5a] focus:ring-[#2d5a5a]"
                     placeholder="••••••••"
-                    required
-                    autoComplete="current-password"
-                    className="pl-10 pr-10 h-12 rounded-lg border-gray-300 focus:border-[#2d5a5a] focus:ring-[#2d5a5a]"
+                    disabled={isLoading || loading}
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-12 px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading || loading}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-400" />
@@ -209,7 +209,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-1">Gestion des employés</h3>
-                  <p className="text-white/70">Centralisez toutes les informations de vos collaborateurs</p>
+                  <p className="text-white/70">Gérez facilement les profils, contrats et informations de vos employés</p>
                 </div>
               </div>
 
@@ -218,8 +218,8 @@ export default function LoginPage() {
                   <BarChart3 className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">Rapports avancés</h3>
-                  <p className="text-white/70">Analysez les performances et tendances RH</p>
+                  <h3 className="font-semibold text-lg mb-1">Tableaux de bord</h3>
+                  <p className="text-white/70">Visualisez vos données RH avec des statistiques en temps réel</p>
                 </div>
               </div>
 
@@ -228,8 +228,8 @@ export default function LoginPage() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">Sécurité renforcée</h3>
-                  <p className="text-white/70">Vos données sont protégées par les meilleurs standards</p>
+                  <h3 className="font-semibold text-lg mb-1">Sécurité avancée</h3>
+                  <p className="text-white/70">Vos données sont protégées par un chiffrement de niveau entreprise</p>
                 </div>
               </div>
             </div>

@@ -16,30 +16,14 @@ const routeConfig = {
   
   // Protected routes (authentication required)
   protected: [
-    "/dashboard/employees",
+    "/dashboard",
   ],
   
   // Admin-only routes
   admin: [
     "/dashboard/settings",
     "/dashboard/system"
-  ],
-  
-  // Routes that require specific permissions
-  permissionBased: {
-    "/dashboard/employees": ["EMPLOYEES"],
-    "/dashboard/departments": ["DEPARTEMENTS"], 
-    "/dashboard/users": ["TENANT_USERS"],
-    "/dashboard/payroll": ["PAYROLL"],
-    "/dashboard/reports": ["REPORTS"],
-    "/dashboard/documents": ["DOCUMENTS"],
-    "/dashboard/analytics": ["ANALYTICS"],
-    "/dashboard/recruitment": ["RECRUITMENT"], 
-    "/dashboard/performance": ["PERFORMANCE"],
-    "/dashboard/training": ["TRAINING"],
-    "/dashboard/leaves": ["EMPLOYEES"],
-    "/dashboard/time-tracking": ["EMPLOYEES"]
-  }
+  ]
 }
 
 // Helper function to check if route is public
@@ -60,17 +44,7 @@ function isAdminRoute(pathname: string): boolean {
   return routeConfig.admin.some(route => pathname.startsWith(route))
 }
 
-// Helper function to get required permissions for a route
-function getRequiredPermissions(pathname: string): string[] {
-  for (const [route, permissions] of Object.entries(routeConfig.permissionBased)) {
-    if (pathname.startsWith(route)) {
-      return permissions
-    }
-  }
-  return []
-}
-
-// MODIFICATION: Vérifier uniquement le cookie CSRF (pas localStorage)
+// Vérifier uniquement le cookie CSRF (sécurisé côté serveur)
 function hasAuthToken(request: NextRequest): boolean {
   const csrfToken = request.cookies.get("csrfToken")?.value
   return !!csrfToken
