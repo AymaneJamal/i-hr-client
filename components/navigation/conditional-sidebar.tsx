@@ -22,7 +22,8 @@ import {
  TrendingUp,
  BookOpen,
  Shield,
- Database
+ Database,
+ UserPlus
 } from "lucide-react"
 
 // Define navigation item type
@@ -58,9 +59,16 @@ const allNavItems: NavItem[] = [
    planModule: "core_hr"
  },
  {
-   title: "Utilisateurs",
+   title: "Liste des utilisateurs",
    href: "/dashboard/users",
    icon: UserCheck,
+   permission: "TENANT_USERS",
+   planModule: "core_hr"
+ },
+ {
+   title: "Ajouter un utilisateur",
+   href: "/dashboard/users/create",
+   icon: UserPlus,
    permission: "TENANT_USERS",
    planModule: "core_hr"
  },
@@ -196,7 +204,11 @@ export function ConditionalSidebar() {
  
  // Group items by category
  const mainItems = visibleNavItems.filter((item: NavItem) => 
-   ["/dashboard", "/dashboard/employees", "/dashboard/departments", "/dashboard/users"].includes(item.href)
+   ["/dashboard", "/dashboard/employees", "/dashboard/departments"].includes(item.href)
+ )
+ 
+ const userManagementItems = visibleNavItems.filter((item: NavItem) =>
+   ["/dashboard/users", "/dashboard/users/create"].includes(item.href)
  )
  
  const hrItems = visibleNavItems.filter((item: NavItem) =>
@@ -274,6 +286,30 @@ export function ConditionalSidebar() {
          </div>
        )}
 
+       {/* User Management Section */}
+       {userManagementItems.length > 0 && (
+         <div className="space-y-1">
+           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
+             Gestion Utilisateurs
+           </h3>
+           {userManagementItems.map((item: NavItem) => (
+             <Link key={item.href} href={item.href}>
+               <Button
+                 variant={pathname === item.href ? "secondary" : "ghost"}
+                 size="sm"
+                 className={cn(
+                   "w-full justify-start",
+                   pathname === item.href && "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                 )}
+               >
+                 <item.icon className="mr-2 h-4 w-4" />
+                 {item.title}
+               </Button>
+             </Link>
+           ))}
+         </div>
+       )}
+
        {/* HR Section */}
        {hrItems.length > 0 && (
          <div className="space-y-1">
@@ -322,11 +358,11 @@ export function ConditionalSidebar() {
          </div>
        )}
 
-       {/* Data & Analytics Section */}
+       {/* Data & Reports Section */}
        {dataItems.length > 0 && (
          <div className="space-y-1">
            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
-             Données & Analyses
+             Données & Rapports
            </h3>
            {dataItems.map((item: NavItem) => (
              <Link key={item.href} href={item.href}>
@@ -348,7 +384,7 @@ export function ConditionalSidebar() {
 
        {/* Settings Section */}
        {settingsItems.length > 0 && (
-         <div className="space-y-1 border-t border-gray-200 pt-4">
+         <div className="space-y-1">
            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
              Administration
            </h3>
@@ -370,17 +406,6 @@ export function ConditionalSidebar() {
          </div>
        )}
 
-       {/* Debug Info (Development only) */}
-       {process.env.NODE_ENV === 'development' && (
-         <div className="mt-6 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
-           <div className="text-xs text-yellow-800">
-             <p className="font-medium">Navigation Debug:</p>
-             <p>Total items: {allNavItems.length}</p>
-             <p>Visible: {visibleNavItems.length}</p>
-             <p>Role: {user.role}</p>
-           </div>
-         </div>
-       )}
      </div>
    </div>
  )

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAppDispatch, useAppSelector } from "@/lib/hooks"
 import { validateToken } from "@/lib/store/auth-slice"
@@ -49,7 +49,7 @@ export function RouteProtector({
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [lastValidation, setLastValidation] = useState<number>(0)
+  const hasValidated = useRef(false) // Pour éviter les re-validations
   
   const dispatch = useAppDispatch()
   const router = useRouter()
@@ -68,17 +68,15 @@ export function RouteProtector({
   } = usePlanFeatures()
 
   useEffect(() => {
+    // Éviter les re-validations multiples
+    if (hasValidated.current) {
+      setIsValidating(false)
+      return
+    }
+
     const validateAccess = async () => {
-      // Éviter les validations trop fréquentes (cooldown de 5 secondes)
-      const now = Date.now()
-      if (now - lastValidation < 5000) {
-        console.log("🕒 RouteProtector: Validation cooldown, skipping...")
-        return
-      }
-      
       setIsValidating(true)
       setErrorMessage(null)
-      setLastValidation(now)
 
       try {
         // First check if user is authenticated
@@ -92,22 +90,11 @@ export function RouteProtector({
           return
         }
 
-        // Validate token to ensure it's still valid
-        try {
-          await dispatch(validateToken({ role: user.role }))
-        } catch (error) {
-          console.error("Token validation failed:", error)
-          setErrorMessage("Session expirée")
-          router.push("/login")
-          return
-        }
-
         // Check role requirements
         if (requiredRole) {
           const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
           
           if (allowMultipleRoles) {
-            // User must have at least one of the required roles
             if (!roles.includes(user.role)) {
               setErrorMessage(`Rôle insuffisant. Rôles acceptés: ${roles.join(", ")}`)
               if (redirectTo) {
@@ -118,9 +105,8 @@ export function RouteProtector({
               return
             }
           } else {
-            // User must have the exact required role
             if (!roles.includes(user.role)) {
-              setErrorMessage(`Accès restreint. Rôle requis: ${roles[0]}`)
+              setErrorMessage(`Accès restreint. Rôle requis: ${roles.join(", ")}`)
               if (redirectTo) {
                 router.push(redirectTo)
               } else {
@@ -131,59 +117,52 @@ export function RouteProtector({
           }
         }
 
-        // For TENANT_ADMIN, only check plan constraints
+        // For TENANT_ADMIN, skip permission checks but verify plan
         if (user.role === "TENANT_ADMIN") {
-          // Check plan feature requirement
           if (planFeature && !hasFeature(planFeature)) {
-            setErrorMessage(`Fonctionnalité non disponible dans votre plan: ${planFeature}`)
+            setErrorMessage("Fonctionnalité non disponible dans votre plan.")
             setIsAuthorized(false)
             return
           }
 
-          // Check plan module requirement
           if (planModule && !hasModule(planModule)) {
-            setErrorMessage(`Module non inclus dans votre plan: ${planModule}`)
+            setErrorMessage("Module non disponible dans votre plan.")
             setIsAuthorized(false)
             return
           }
 
-          // Check if plan is active
-          if (!isPlanActive) {
+          if (!isPlanActive()) {
             setErrorMessage("Plan inactif. Contactez l'administrateur.")
             setIsAuthorized(false)
             return
           }
 
-          // Admin passes all checks
           setIsAuthorized(true)
           return
         }
 
-        // For TENANT_USER and TENANT_HELPER, check permissions AND plan
+        // For other roles, check permissions
         if (permission) {
-          // Check if explicitly forbidden
           if (isForbidden(permission)) {
-            setErrorMessage("Accès refusé. Permissions insuffisantes.")
+            setErrorMessage("Accès explicitement interdit pour cette ressource.")
             setIsAuthorized(false)
             return
           }
 
-          // Check specific permission level
-          if (!hasPermission(permission, level)) {
-            setErrorMessage(`Permission insuffisante. Niveau requis: ${level}`)
+          if (level === "READ" && !hasAnyPermission(permission)) {
+            setErrorMessage(`Permission manquante: ${permission}`)
             setIsAuthorized(false)
             return
           }
 
-          // Check if has any access to the module
-          if (!hasAnyPermission(permission)) {
-            setErrorMessage("Aucune permission pour ce module.")
+          if (level !== "READ" && !hasPermission(permission, level)) {
+            setErrorMessage(`Permission insuffisante: ${permission} (${level} requis)`)
             setIsAuthorized(false)
             return
           }
         }
 
-        // Check plan constraints for non-admin users
+        // Check plan requirements
         if (planFeature && !hasFeature(planFeature)) {
           setErrorMessage("Fonctionnalité non disponible dans votre plan.")
           setIsAuthorized(false)
@@ -196,7 +175,7 @@ export function RouteProtector({
           return
         }
 
-        if (!isPlanActive) {
+        if (!isPlanActive()) {
           setErrorMessage("Plan inactif. Contactez l'administrateur.")
           setIsAuthorized(false)
           return
@@ -204,6 +183,7 @@ export function RouteProtector({
 
         // All checks passed
         setIsAuthorized(true)
+        hasValidated.current = true // Marquer comme validé
 
       } catch (error) {
         console.error("Route validation error:", error)
@@ -215,26 +195,7 @@ export function RouteProtector({
     }
 
     validateAccess()
-  }, [
-    authState, 
-    csrfToken, 
-    user, 
-    permission, 
-    level, 
-    planFeature, 
-    planModule, 
-    requiredRole, 
-    allowMultipleRoles,
-    hasPermission, 
-    hasAnyPermission,
-    isForbidden, 
-    hasFeature, 
-    hasModule, 
-    isPlanActive,
-    dispatch, 
-    router, 
-    redirectTo
-  ])
+  }, [authState, csrfToken, user?.role, user?.id]) // DÉPENDANCES MINIMALES
 
   // Show loading while validating
   if (isValidating) {
@@ -303,18 +264,6 @@ export function RouteProtector({
   )
 }
 
-// Convenience wrapper for admin-only routes
-export function AdminRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <RouteProtector 
-      requiredRole="TENANT_ADMIN"
-      fallbackMessage="Cette page est réservée aux administrateurs."
-    >
-      {children}
-    </RouteProtector>
-  )
-}
-
 // Convenience wrapper for permission-based routes
 export function PermissionRoute({ 
   children, 
@@ -330,6 +279,18 @@ export function PermissionRoute({
       permission={permission}
       level={level}
       fallbackMessage={`Accès refusé. Permission requise: ${permission} (${level})`}
+    >
+      {children}
+    </RouteProtector>
+  )
+}
+
+// Convenience wrapper for admin-only routes
+export function AdminRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <RouteProtector 
+      requiredRole="TENANT_ADMIN"
+      fallbackMessage="Cette page est réservée aux administrateurs."
     >
       {children}
     </RouteProtector>
